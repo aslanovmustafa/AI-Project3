@@ -15,6 +15,10 @@ def create_game(opponent_team: int): #returns game ID
         + "&teamId2="
         + str(opponent_team)
         + "&type=game&gameType=TTT"
+        + "&boardSize="
+        + board_size
+        + "&target="
+        + target
     )
     headers = {
         'x-api-key': api_key,
@@ -44,8 +48,11 @@ def get_board_map(gameId: int): #prints board map
     conn.request("GET", url, payload, headers)
     response = conn.getresponse()
     reply = response.read()
-
-    return reply
+    reply = reply.decode('utf-8')
+    if reply.index('null'):
+        return None
+    else:
+        return ast.literal_eval(reply)
 
 def get_moves(gameId: int, count: int = 1): #Get list of recent moves based on count number
     

@@ -5,29 +5,50 @@ import time
 infi = math.inf
 import json
 import requester as req
+import ast
 # import sys
-# sys.setrecursionlimit(1500)
+# sys.setrecursionlimit(5000)
+import sys
+sys.setrecursionlimit(5000)
 
 class Board(defaultdict):
     not_taken = '-'
    
     def __init__(self, size, to_move=None, **kwds): self.__dict__.update(size=size, to_move=to_move, **kwds)
-        
+    # def new(self, changes: dict, **kwds) -> 'Board':
+    #     board = self.get_board()
+    #     # board.update(self)
+    #     # board.update(changes)
+    #     return board
+    
+    # def get_board(self):
+    #     board = Board(board_size)
+    #     raw = req.get_board_map(gameId = gameId)
+    #     if (raw is None):
+    #         pass
+    #     else:
+    #         raw_board = ast.literal_eval(raw["output"])
+    #         print(type(raw_board))
+    #         board_d = {tuple(map(int,k.split(','))):str(v)
+    #                     for k,v in raw_board.items()}
+    #         board.update(board_d)
+    #     return board
+
+
+    # def __missing__(self, loc):
+    #     x, y = loc
+    #     if 0 <= x < self.size and 0 <= y < self.size: return self.not_taken
+            
+    # def __hash__(self): return hash(tuple(sorted(self.items()))) + hash(self.to_move)
+    
+    # def __repr__(self):
+    #     def row(y): return ' '.join(self[x, y] for x in range(self.size))
+    #     return '\n'.join(map(row, range(self.size))) +  '\n'
     def new(self, changes: dict, **kwds) -> 'Board':
-        board = Board(size=self.size, **kwds)
+        board = Board(self.size, **kwds)
         board.update(self)
         board.update(changes)
         return board
-
-    def __missing__(self, loc):
-        x, y = loc
-        if 0 <= x < self.size and 0 <= y < self.size: return self.not_taken
-    
-    def __repr__(self):
-        def row(y): return ' '.join(self[x, y] for x in range(self.size
-                                                              ))
-        return '\n'.join(map(row, range(self.size))) +  '\n'
-      
 
     def __missing__(self, loc):
         x, y = loc
@@ -42,21 +63,21 @@ class Board(defaultdict):
 
 
 class TTT():
-    def __init__(self, size=12, k=6):
+    def __init__(self, size, k):
         self.k = k # k in a row
         self.squares = {(x, y) for x in range(size) for y in range(size)}
-        self.initial = Board(size=size, to_move='X', utility=0)
+        self.initial = Board(size=size, to_move=p1, utility=0)
 
     def slots_left(self, board): return self.squares - set(board) #checks how many moves are allowed to make yet
 
     def marker(self, board, square): #putting the X or O mark 
         player = board.to_move
-        board = board.new({square: player}, to_move=('O' if player == 'X' else 'X'))
+        board = board.new({square: player}, to_move=(p2 if player == p1 else p1))
         win = TTT.k_in_row(board, player, square, self.k)
-        board.utility = (0 if not win else +1 if player == 'X' else -1)
+        board.utility = (0 if not win else +1 if player == p1 else -1)
         return board
 
-    def utility(self, board, player): return board.utility if player == 'X' else -board.utility #1 for win, -1 for loss, 0 for else
+    def utility(self, board, player): return board.utility if player == p1 else -board.utility #1 for win, -1 for loss, 0 for else
 
     def is_terminal(self, board): return board.utility != 0 or len(self.squares) == len(board) #checks if game is finished or no empty squares left
 
@@ -92,17 +113,22 @@ class Player():
     def opponent(game, state):
         player = state.to_move
         inpt = req.get_moves(gameId)
-        p = inpt["moves"][-1]['symbol']
-        if player != p:
-            m = inpt["moves"][-1]['move']
-            m = tuple(map(int,m.split(',')))
-            if game.is_terminal(state):
-              return game.utility(state, player), None
-            *_, move = game.marker(state, m)
-            return move
-        else: 
-            # time.sleep(2)
-            return Player.opponent(game, state)
+        try:
+            p = inpt["moves"][-1]['symbol']
+        except Exception as e:
+            Player.opponent(game, state)
+        else:
+            p = inpt["moves"][-1]['symbol']
+            if player == p:
+                m = inpt["moves"][-1]['move']
+                m = tuple(map(int,m.split(',')))
+                if game.is_terminal(state):
+                  return game.utility(state, player), None
+                *_, move = game.marker(state, m)
+                return move
+            else: 
+                # time.sleep(2)
+                return Player.opponent(game, state)
 
     def a_b_minimax(game, state, d, h=lambda s, p: 0):
         player = state.to_move
@@ -141,21 +167,28 @@ class Player():
         return max_value(state, -infi, +infi, 0)
 
 def first(): #if we are the ones creating the game, this will be run
-    TTT.play(TTT(size=board_size, k=target), {'X':Player.AI(3), 'O':Player.player()}, verbose=True).utility
+    global p1,p2
+    p1,p2 = 'O','X'
+    TTT.play(TTT(size=board_size, k=target), {'O':Player.AI(3), 'X':Player.player()}, verbose=True).utility
+    
 
 def second(): #if we are the ones playing against someone who created the game, this will be run
-    TTT.play(TTT(size=board_size, k=target), {'X':Player.player(), 'O':Player.AI(3)}, verbose=True).utility
+    global p1,p2
+    p1,p2 = 'X', 'O'
+    TTT.play(TTT(size=board_size, k=target), {'O':Player.player(),'X':Player.AI(3)}, verbose=True).utility
 
 
 if __name__ == '__main__':
     strt = time.time()
+    global board_size, target 
     board_size, target = int(req.board_size), int(req.target)
-    # gameId = req.create_game(0000)
+    # gameId = req.create_game(1284)
     # print(gameId)
+    # gameId = 3053
     # first()
 #________________________________#
-    # gameId = 0000
-    # second()
+    gameId = 3063
+    second()
 
     endd = time.time()
     print(endd - strt)
