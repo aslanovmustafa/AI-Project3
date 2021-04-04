@@ -3,7 +3,6 @@ import random
 import math
 import time
 infi = math.inf
-import json
 import requester as req
 import ast
 # import sys
@@ -15,40 +14,25 @@ class Board(defaultdict):
     not_taken = '-'
    
     def __init__(self, size, to_move=None, **kwds): self.__dict__.update(size=size, to_move=to_move, **kwds)
-    # def new(self, changes: dict, **kwds) -> 'Board':
-    #     board = self.get_board()
-    #     # board.update(self)
-    #     # board.update(changes)
-    #     return board
-    
-    # def get_board(self):
-    #     board = Board(board_size)
-    #     raw = req.get_board_map(gameId = gameId)
-    #     if (raw is None):
-    #         pass
-    #     else:
-    #         raw_board = ast.literal_eval(raw["output"])
-    #         print(type(raw_board))
-    #         board_d = {tuple(map(int,k.split(','))):str(v)
-    #                     for k,v in raw_board.items()}
-    #         board.update(board_d)
-    #     return board
-
-
-    # def __missing__(self, loc):
-    #     x, y = loc
-    #     if 0 <= x < self.size and 0 <= y < self.size: return self.not_taken
-            
-    # def __hash__(self): return hash(tuple(sorted(self.items()))) + hash(self.to_move)
-    
-    # def __repr__(self):
-    #     def row(y): return ' '.join(self[x, y] for x in range(self.size))
-    #     return '\n'.join(map(row, range(self.size))) +  '\n'
     def new(self, changes: dict, **kwds) -> 'Board':
         board = Board(self.size, **kwds)
         board.update(self)
         board.update(changes)
         return board
+
+    def get_board():
+        board = Board(board_size)
+        raw = req.get_board_map(gameId = gameId)
+        if (raw is None):
+            pass
+        else:
+            raw_board = ast.literal_eval(raw["output"])
+            board_d = {tuple(map(int,k.split(','))):str(v)
+                        for k,v in raw_board.items()}
+            board.update(board_d)
+        print("SERVER VERSION:"
+        print(board, "\n")
+        # return board
 
     def __missing__(self, loc):
         x, y = loc
@@ -95,6 +79,7 @@ class TTT():
             if verbose: 
                 print('Player', player, 'move:', move)
                 print(state)
+                Board.get_board()
         if (game.is_terminal(state) and state.utility == 0):
         # if (len(game.squares) == len(state) and state.utility == 0):
           print("It's DRAW")
@@ -118,7 +103,6 @@ class Player():
         except Exception as e:
             Player.opponent(game, state)
         else:
-            p = inpt["moves"][-1]['symbol']
             if player == p:
                 m = inpt["moves"][-1]['move']
                 m = tuple(map(int,m.split(',')))
@@ -127,7 +111,6 @@ class Player():
                 *_, move = game.marker(state, m)
                 return move
             else: 
-                # time.sleep(2)
                 return Player.opponent(game, state)
 
     def a_b_minimax(game, state, d, h=lambda s, p: 0):
@@ -163,32 +146,31 @@ class Player():
             return v, move
         _, mxmn =  max_value(state, -infi, +infi, 0)
         req.make_a_move(gameId, mxmn)
-        # time.sleep(10)
         return max_value(state, -infi, +infi, 0)
 
 def first(): #if we are the ones creating the game, this will be run
     global p1,p2
-    p1,p2 = 'O','X'
+    p1,p2 = 'O', 'X'
     TTT.play(TTT(size=board_size, k=target), {'O':Player.AI(3), 'X':Player.player()}, verbose=True).utility
     
 
 def second(): #if we are the ones playing against someone who created the game, this will be run
     global p1,p2
     p1,p2 = 'X', 'O'
-    TTT.play(TTT(size=board_size, k=target), {'O':Player.player(),'X':Player.AI(3)}, verbose=True).utility
+    TTT.play(TTT(size=board_size, k=target), {'O':Player.player(), 'X':Player.AI(3)}, verbose=True).utility
 
 
 if __name__ == '__main__':
     strt = time.time()
     global board_size, target 
     board_size, target = int(req.board_size), int(req.target)
-    # gameId = req.create_game(1284)
+    # gameId = 0000
+
+    # gameId = req.create_game(0000)
     # print(gameId)
-    # gameId = 3053
     # first()
 #________________________________#
-    gameId = 3063
-    second()
+    # second()
 
     endd = time.time()
     print(endd - strt)
