@@ -49,10 +49,12 @@ def get_board_map(gameId: int): #prints board map
     response = conn.getresponse()
     reply = response.read()
     reply = reply.decode('utf-8')
-    if reply.index('null'):
-        return None
+    try:
+      reply.index('null')
+    except Exception as e:
+      return ast.literal_eval(reply) 
     else:
-        return ast.literal_eval(reply)
+      return None
 
 def get_moves(gameId: int, count: int = 1): #Get list of recent moves based on count number
     
